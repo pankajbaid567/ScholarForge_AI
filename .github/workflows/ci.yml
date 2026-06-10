@@ -1,0 +1,83 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: scholarforge
+          POSTGRES_PASSWORD: scholarforge_test
+          POSTGRES_DB: scholarforge_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: "pip"
+        
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio flake8 black
+
+    - name: Lint with Black
+      run: |
+        black --check src/
+
+    - name: Lint with flake8
+      run: |
+        flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        
+    - name: Run Unit Tests (Pytest)
+      env:
+        DATABASE_URL: postgresql://scholarforge:scholarforge_test@localhost:5432/scholarforge_test
+        REDIS_URL: redis://localhost:6379/0
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        pytest tests/unit/ -v
+
+  evaluation-gate:
+    needs: test-and-lint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        
+    - name: Install Dependencies
+      run: pip install -r requirements.txt pytest
+        
+    - name: Run RAGAS Evaluation Gate
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        # This test script runs the RAGAS metrics on the Golden Dataset
+        # and forcefully exits with code 1 if Faithfulness < 0.87 or Recall < 0.80
+        pytest tests/evaluation/test_ragas_gate.py -v

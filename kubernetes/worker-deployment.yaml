@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scholarforge-worker
+  labels:
+    app: scholarforge-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: scholarforge-worker
+  template:
+    metadata:
+      labels:
+        app: scholarforge-worker
+    spec:
+      containers:
+      - name: celery-worker
+        image: scholarforge/worker:latest
+        command: ["celery", "-A", "src.workers.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+        envFrom:
+        - secretRef:
+            name: scholarforge-secrets
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1000m"
+          limits:
+            memory: "2Gi"  # Workers need more RAM for PyMuPDF parsing and embedding generation
+            cpu: "2000m"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: scholarforge-worker-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: scholarforge-worker
+  minReplicas: 2
+  maxReplicas: 20  # Scale aggressively during bulk PDF ingestion
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
