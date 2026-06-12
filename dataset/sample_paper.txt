@@ -1,0 +1,19 @@
+Attention Is All You Need
+
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, Illia Polosukhin
+
+Abstract
+The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train.
+
+1 Introduction
+Recurrent neural networks, long short-term memory and gated recurrent neural networks in particular, have been firmly established as state of the art approaches in sequence modeling and transduction problems such as language modeling and machine translation.
+...
+3 Model Architecture
+Most competitive neural sequence transduction models have an encoder-decoder structure.
+3.1 Encoder and Decoder Stacks
+Encoder: The encoder is composed of a stack of N = 6 identical layers.
+Decoder: The decoder is also composed of a stack of N = 6 identical layers.
+3.2 Attention
+An attention function can be described as mapping a query and a set of key-value pairs to an output.
+Scaled Dot-Product Attention: We call our particular attention "Scaled Dot-Product Attention". The input consists of queries and keys of dimension d_k, and values of dimension d_v.
+Multi-Head Attention: Instead of performing a single attention function with d_model-dimensional keys, values and queries, we found it beneficial to linearly project the queries, keys and values h times.
