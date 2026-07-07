@@ -36,15 +36,17 @@ services:
         sync: false
 
   # ---------------------------------------------------------
-  # 3. Celery Background Worker
+  # 3. Celery Background Worker (Deployed as a Free Web Service)
   # ---------------------------------------------------------
-  - type: worker
+  - type: web
     name: scholarforge-worker
     env: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    # Starts worker listening to both queues
-    dockerCommand: "celery -A src.workers.celery_app worker --loglevel=info --pool=solo -Q ingestion,evaluation"
+    # Hack to run a background worker on Render's free tier:
+    # Run Celery in the background, and a dummy HTTP server in the foreground
+    # so Render detects a service listening on $PORT.
+    dockerCommand: "sh -c 'celery -A src.workers.celery_app worker --loglevel=info --pool=solo -Q ingestion,evaluation & python -m http.server $PORT'"
     envVars:
       - key: DATABASE_URL
         sync: false
