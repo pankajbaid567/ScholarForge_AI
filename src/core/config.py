@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     CHROMA_DB_DIR: str = "./chroma_data"
     CHROMA_HOST: str = ""
     CHROMA_PORT: int = 8000
+    CHROMA_TENANT: str = ""
+    CHROMA_DATABASE: str = ""
+    CHROMA_API_KEY: str = ""
 
     # --- API Keys ---
     OPENAI_API_KEY: str = ""

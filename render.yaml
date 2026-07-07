@@ -8,37 +8,14 @@ services:
     ipAllowList: [] # internal only
 
   # ---------------------------------------------------------
-  # 2. Standalone ChromaDB Server
-  # ---------------------------------------------------------
-  - type: web
-    name: scholarforge-chromadb
-    env: docker
-    plan: free
-    # Use the official ChromaDB image
-    dockerfilePath: "" # Ignored when using image
-    image:
-      url: chromadb/chroma:latest
-    disk:
-      name: chroma-data
-      mountPath: /chroma/chroma/
-      sizeGB: 1
-    envVars:
-      - key: IS_PERSISTENT
-        value: "TRUE"
-      - key: PERSIST_DIRECTORY
-        value: "/chroma/chroma/"
-      - key: ANONYMIZED_TELEMETRY
-        value: "False"
-
-  # ---------------------------------------------------------
-  # 3. FastAPI Web Service
+  # 2. FastAPI Web Service
   # ---------------------------------------------------------
   - type: web
     name: scholarforge-api
     env: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    startCommand: "uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
+    dockerCommand: "uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: DATABASE_URL
         sync: false # Requires manual entry in the Render Dashboard (Neon DB URL)
@@ -47,20 +24,19 @@ services:
           type: redis
           name: scholarforge-redis
           property: connectionString
-      - key: CHROMA_HOST
-        fromService:
-          type: web
-          name: scholarforge-chromadb
-          property: host
-      - key: CHROMA_PORT
-        value: "8000"
+      - key: CHROMA_TENANT
+        value: "89d53025-10e6-4f9a-8ad9-a8726bae971d"
+      - key: CHROMA_DATABASE
+        value: "scholarforge-ai"
+      - key: CHROMA_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: HUGGINGFACE_API_KEY
         sync: false
 
   # ---------------------------------------------------------
-  # 4. Celery Background Worker
+  # 3. Celery Background Worker
   # ---------------------------------------------------------
   - type: worker
     name: scholarforge-worker
@@ -68,7 +44,7 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     # Starts worker listening to both queues
-    startCommand: "celery -A src.workers.celery_app worker --loglevel=info --pool=solo -Q ingestion,evaluation"
+    dockerCommand: "celery -A src.workers.celery_app worker --loglevel=info --pool=solo -Q ingestion,evaluation"
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -77,13 +53,12 @@ services:
           type: redis
           name: scholarforge-redis
           property: connectionString
-      - key: CHROMA_HOST
-        fromService:
-          type: web
-          name: scholarforge-chromadb
-          property: host
-      - key: CHROMA_PORT
-        value: "8000"
+      - key: CHROMA_TENANT
+        value: "89d53025-10e6-4f9a-8ad9-a8726bae971d"
+      - key: CHROMA_DATABASE
+        value: "scholarforge-ai"
+      - key: CHROMA_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: HUGGINGFACE_API_KEY

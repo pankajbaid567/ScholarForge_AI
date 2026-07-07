@@ -20,8 +20,15 @@ class VectorStore:
     def __init__(self, collection_name: str = "scholarforge_docs"):
         db_path = settings.CHROMA_DB_DIR
 
-        # Initialize ChromaDB client (HTTP or Persistent)
-        if settings.CHROMA_HOST:
+        # Initialize ChromaDB client (Cloud, HTTP, or Persistent)
+        if settings.CHROMA_TENANT and settings.CHROMA_DATABASE:
+            logger.info("Connecting to Chroma Cloud (tenant: %s, db: %s)", settings.CHROMA_TENANT, settings.CHROMA_DATABASE)
+            self.client = chromadb.CloudClient(
+                tenant=settings.CHROMA_TENANT,
+                database=settings.CHROMA_DATABASE,
+                api_key=settings.CHROMA_API_KEY,
+            )
+        elif settings.CHROMA_HOST:
             logger.info("Connecting to remote ChromaDB at %s:%d", settings.CHROMA_HOST, settings.CHROMA_PORT)
             self.client = chromadb.HttpClient(
                 host=settings.CHROMA_HOST, 
