@@ -38,7 +38,50 @@ By prioritizing exact-match lexical retrieval alongside semantic density, cachin
 ScholarForge operates as a set of decoupled, horizontally scalable microservices. The API Gateway is completely stateless, relying on Redis for message brokering and rate limiting, PostgreSQL for relational evaluation state, and ChromaDB for in-memory HNSW vector search.
 
 ### 5. Architecture Diagram
-![System Architecture Diagram](https://via.placeholder.com/1000x500.png?text=Mermaid+Architecture+Diagram+Placeholder) *(See [docs/architecture/architecture.md](./docs/architecture/architecture.md) for full system topology).*
+
+```mermaid
+flowchart TD
+    %% Define Styles
+    classDef frontend fill:#ff4b4b,stroke:#fff,stroke-width:2px,color:#fff,font-weight:bold
+    classDef api fill:#009688,stroke:#fff,stroke-width:2px,color:#fff,font-weight:bold
+    classDef worker fill:#ff9800,stroke:#fff,stroke-width:2px,color:#fff,font-weight:bold
+    classDef db fill:#3f51b5,stroke:#fff,stroke-width:2px,color:#fff,font-weight:bold
+    classDef external fill:#607d8b,stroke:#fff,stroke-width:2px,color:#fff,font-weight:bold
+    classDef queue fill:#e91e63,stroke:#fff,stroke-width:2px,color:#fff,font-weight:bold
+
+    %% User & Frontend
+    User([User / Researcher]) -->|Uploads PDFs & Chats| UI
+    UI["💻 Streamlit Cloud<br/>(Frontend UI)"]:::frontend
+
+    %% API Layer
+    UI <-->|REST API & SSE Streaming| API
+    API["🌐 FastAPI Backend<br/>(Render Web Service)"]:::api
+
+    %% Databases & External APIs from API
+    API -->|Reads/Writes Metadata| Postgres["🐘 Neon PostgreSQL<br/>(Serverless SQL)"]:::db
+    API <-->|Similarity Search| Chroma["🌌 Chroma Cloud<br/>(Vector Database)"]:::db
+    API <-->|LLM Generation| HF["🤗 Hugging Face<br/>(Inference Endpoints)"]:::external
+
+    %% Message Broker
+    API -->|Dispatches Tasks| Redis["🟥 Redis Broker<br/>(Render Managed Redis)"]:::queue
+
+    %% Background Worker Layer
+    Redis -->|Consumes Tasks| Celery["⚙️ Celery Worker<br/>(Render Background Process)"]:::worker
+    
+    %% Worker Internal Processes
+    subgraph Celery Process
+        Ingestion["📄 Document Ingestion<br/>(PyMuPDF, Chunking, Embedding)"]
+        Evaluation["📊 RAGAS Evaluation<br/>(Faithfulness, Relevancy)"]
+    end
+    Celery --> Ingestion
+    Celery --> Evaluation
+
+    %% Databases from Worker
+    Ingestion -->|Saves Chunks| Postgres
+    Ingestion -->|Upserts Vectors| Chroma
+    Evaluation -->|Logs Metrics| Postgres
+    Evaluation <-->|Eval LLM Calls| HF
+```
 
 ## 6. Technology Stack
 * **API Gateway**: FastAPI, Uvicorn, Pydantic
