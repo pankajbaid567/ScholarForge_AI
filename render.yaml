@@ -45,8 +45,8 @@ services:
     dockerfilePath: ./Dockerfile
     # Hack to run a background worker on Render's free tier:
     # Run Celery in the background, and a dummy HTTP server in the foreground
-    # so Render detects a service listening on $PORT.
-    dockerCommand: "sh -c 'celery -A src.workers.celery_app worker --loglevel=info --pool=solo -Q ingestion,evaluation & python -m http.server $PORT'"
+    # Starts worker listening to both queues in background with dummy HTTP server
+    dockerCommand: "./start_worker.sh"
     envVars:
       - key: DATABASE_URL
         sync: false

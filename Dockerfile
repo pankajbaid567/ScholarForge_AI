@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
+RUN chmod +x start_worker.sh
 
 # Set default command (can be overridden by Render)
 # We set it to run the API by default.
