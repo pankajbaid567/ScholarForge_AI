@@ -1,34 +1,76 @@
-version: '3.8'
-
 services:
+  # --- Backend API ---
   api:
     build: .
-    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8080 --reload
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 2
     ports:
-      - "8080:8080"
+      - "8080:8000"
     volumes:
       - .:/app
+      - chroma_data:/app/chroma_data
     environment:
       - DATABASE_URL=postgresql://scholarforge:scholarforge@postgres:5432/scholarforge
       - REDIS_URL=redis://redis:6379/0
       - CHROMA_DB_DIR=/app/chroma_data
+      - LOG_LEVEL=INFO
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  worker:
+  # --- Celery Ingestion Worker (heavy, long-running tasks) ---
+  worker-ingestion:
     build: .
-    command: celery -A src.workers.celery_app worker --loglevel=info
+    command: celery -A src.workers.celery_app worker --loglevel=info --queues=ingestion --concurrency=2
     volumes:
       - .:/app
+      - chroma_data:/app/chroma_data
     environment:
       - DATABASE_URL=postgresql://scholarforge:scholarforge@postgres:5432/scholarforge
       - REDIS_URL=redis://redis:6379/0
       - CHROMA_DB_DIR=/app/chroma_data
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
+  # --- Celery Evaluation Worker (lightweight RAGAS tasks) ---
+  worker-evaluation:
+    build: .
+    command: celery -A src.workers.celery_app worker --loglevel=info --queues=evaluation --concurrency=4
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql://scholarforge:scholarforge@postgres:5432/scholarforge
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # --- Frontend ---
+  frontend:
+    build: .
+    command: streamlit run frontend/app.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    environment:
+      - API_BASE_URL=http://api:8000/api/v1
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # --- Infrastructure ---
   postgres:
     image: postgres:15-alpine
     environment:
@@ -36,31 +78,26 @@ services:
       POSTGRES_PASSWORD: scholarforge
       POSTGRES_DB: scholarforge
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scholarforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack-server:latest
     ports:
-      - "6379:6379"
+      - "16379:6379"
     volumes:
       - redis_data:/data
-
-  chromadb:
-    image: chromadb/chroma:0.5.0
-    ports:
-      - "8000:8000"
-    volumes:
-      - chroma_data:/chroma/chroma
-
-  phoenix:
-    image: arizephoenix/phoenix:latest
-    container_name: scholarforge_phoenix
-    ports:
-      - "6006:6006" # UI and OTLP Receiver port
-    environment:
-      - PHOENIX_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

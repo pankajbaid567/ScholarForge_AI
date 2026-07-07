@@ -73,7 +73,10 @@ class Evaluation(Base):
     faithfulness = Column(Float, nullable=True)
     answer_rel = Column(Float, nullable=True)
     context_rec = Column(Float, nullable=True)
-    latency_ms = Column(Integer, nullable=True)
+    latency_ms = Column(Integer, nullable=True)  # This tracks RAGAS evaluation latency
+    chat_latency_ms = Column(Integer, nullable=True) # End-to-end chat response latency
+    retrieval_latency_ms = Column(Integer, nullable=True)
+    llm_latency_ms = Column(Integer, nullable=True)
     cache_hit = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
