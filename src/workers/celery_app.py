@@ -14,8 +14,6 @@ import logging
 from celery import Celery
 
 from src.core.config import get_settings
-from src.ingestion.pipeline import run_ingestion
-from src.workers.eval_worker import run_evaluation_task
 
 logger = logging.getLogger("scholarforge.workers")
 settings = get_settings()
@@ -51,6 +49,7 @@ def task_run_ingestion(self, file_bytes_hex: str, filename: str, doc_id: str):
     """
     logger.info("Starting ingestion for document %s (%s)", doc_id, filename)
     try:
+        from src.ingestion.pipeline import run_ingestion
         file_bytes = bytes.fromhex(file_bytes_hex)
         run_ingestion(file_bytes, filename, doc_id)
         logger.info("Ingestion complete for document %s", doc_id)
@@ -77,6 +76,7 @@ def task_run_ragas(
     """
     logger.info("Starting RAGAS evaluation for message %s", message_id)
     try:
+        from src.workers.eval_worker import run_evaluation_task
         asyncio.run(
             run_evaluation_task(
                 message_id,
